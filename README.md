@@ -5,7 +5,6 @@
 
 - Python 3.11
 - PostgreSQL 16 или выше
-- pip
 
 ## Установка и запуск
 
@@ -14,3 +13,15 @@
 ```bash
 git clone https://github.com/maris-volk/exam-practice-desktop
 cd project
+```
+
+### Установка зависимостей
+```bash
+pip install -r requirements.txt
+```
+
+### Настройка базы данных
+Создать базу данных PostgreSQL и настроить подключение в файле database/db_session.py:
+```bash
+DATABASE_URL = "postgresql+psycopg://user:password@localhost:5432/dbname"
+```
