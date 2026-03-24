@@ -17,9 +17,10 @@ USER_COLUMNS = [
 
 
 class AdminView(QWidget):
-    def __init__(self, user_controller: IUserController, parent=None):
+    def __init__(self, user_controller: IUserController, current_user_id: int, parent=None):
         super().__init__(parent)
         self.user_controller = user_controller
+        self.current_user_id = current_user_id
         self.init_ui()
         self.setWindowTitle("Панель администратора")
         self.setMinimumSize(800, 600)
@@ -60,6 +61,18 @@ class AdminView(QWidget):
         self.delete_btn.clicked.connect(self.delete_user)
         self.unlock_btn.clicked.connect(self.unlock_user)
 
+    def focusNextPrevChild(self, next_child: bool) -> bool:
+        current = self.focusWidget()
+        if next_child:
+            if current == self.unlock_btn:
+                self.table_view.setFocus()
+                return True
+        else:
+            if current == self.table_view:
+                self.unlock_btn.setFocus()
+                return True
+        return super().focusNextPrevChild(next_child)
+
     def load_users(self):
         try:
             users = self.user_controller.get_all_users()
@@ -97,10 +110,28 @@ class AdminView(QWidget):
             QMessageBox.information(self, "Удаление", "Выберите пользователя.")
             return
 
-        reply = QMessageBox.question(self, "Подтверждение", f"Удалить пользователя '{user.login}'?", QMessageBox.Yes | QMessageBox.No)
-        if reply == QMessageBox.Yes:
-            self.user_controller.delete_user(user.user_id)
-            self.load_users()
+        if user.user_id == self.current_user_id:
+            QMessageBox.warning(self, "Недопустимая операция", "Вы не можете удалить свою собственную учётную запись.")
+            return
+
+        reply = QMessageBox.question(self, "Подтверждение", f"Удалить пользователя '{user.login}'?",
+                                     QMessageBox.Yes | QMessageBox.No)
+        if reply != QMessageBox.Yes:
+            return
+
+        try:
+            success = self.user_controller.delete_user(user.user_id)
+            if success:
+                self.load_users()
+            else:
+                QMessageBox.warning(self, "Ошибка", "Пользователь не найден.")
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            QMessageBox.critical(self, "Ошибка",
+                                 f"Не удалось удалить пользователя.\n"
+                                 f"Возможно, есть связанные данные.\n\n"
+                                 f"Детали: {e}")
 
     def unlock_user(self):
         user = self.get_selected_user()

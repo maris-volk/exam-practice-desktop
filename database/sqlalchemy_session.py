@@ -12,6 +12,9 @@ class SQLAlchemySession:
     def add(self, instance: Any):
         self._session.add(instance)
 
+    def delete(self, instance: Any):
+        self._session.delete(instance)
+
     def commit(self):
         self._session.commit()
 

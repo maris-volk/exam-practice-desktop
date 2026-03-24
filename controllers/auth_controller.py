@@ -36,6 +36,12 @@ class AuthController(BaseController):
         user = self.db.query(User).filter_by(login=login).first()
         return user is not None and user.login_attempts >= 3
 
+    def increment_attempts(self, login: str) -> None:
+        user = self.db.query(User).filter_by(login=login).first()
+        if user:
+            user.login_attempts += 1
+            self.db.commit()
+
     def get_attempts_info(self, login: str) -> Tuple[int, int]:
         user = self.db.query(User).filter_by(login=login).first()
         if user:

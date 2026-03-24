@@ -6,12 +6,12 @@ from views.login_view import LoginView
 
 class AuthFlowHandler:
     def __init__(
-        self,
-        auth_controller: IAuthController,
-        user_controller: IUserController,
-        login_view: LoginView,
-        navigation_manager: 'NavigationManager'
-    ):
+            self,
+            auth_controller: IAuthController,
+            user_controller: IUserController,
+            login_view: LoginView,
+            navigation_manager: NavigationManager
+        ):
         self.auth_controller = auth_controller
         self.user_controller = user_controller
         self.login_view = login_view
@@ -28,7 +28,14 @@ class AuthFlowHandler:
             return
 
         if not self.login_view.captcha_solved:
-            self.login_view.show_warning.emit("Капча", "Сначала соберите пазл.")
+            self.auth_controller.increment_attempts(login)
+            attempts, max_attempts = self.auth_controller.get_attempts_info(login)
+            remaining = max_attempts - attempts
+            if remaining <= 0:
+                self.login_view.show_critical.emit("Доступ заблокирован",  "Вы заблокированы. Обратитесь к администратору.")
+            else:
+                self.login_view.show_warning.emit("Капча", f"Пазл собран неверно.\nОсталось попыток: {remaining}")
+            self.login_view.reset_captcha_after_failure()
             return
 
         user = self.auth_controller.authenticate(login, password)
@@ -38,13 +45,11 @@ class AuthFlowHandler:
             self.login_view.show_info.emit("Успех", "Вы успешно авторизовались.")
         else:
             if self.auth_controller.is_user_blocked(login):
-                self.login_view.show_critical.emit("Доступ заблокирован",
-                                                   "Вы заблокированы. Обратитесь к администратору.")
+                self.login_view.show_critical.emit("Доступ заблокирован", "Вы заблокированы. Обратитесь к администратору.")
             else:
                 attempts, max_attempts = self.auth_controller.get_attempts_info(login)
                 remaining = max_attempts - attempts
-                self.login_view.show_critical.emit("Ошибка авторизации",
-                                                   f"Вы ввели неверный логин или пароль.\n"
+                self.login_view.show_critical.emit("Ошибка авторизации", f"Вы ввели неверный логин или пароль.\n"
                                                    f"Осталось попыток: {remaining}")
             self.login_view.reset_captcha_after_failure()
 
@@ -53,6 +58,6 @@ class AuthFlowHandler:
             user = self.pending_user
             self.pending_user = None
             if user.role.role_name == "admin":
-                self.navigation_manager.show_admin(self.user_controller)
+                self.navigation_manager.show_admin(self.user_controller, user.user_id)
             else:
                 QApplication.quit()

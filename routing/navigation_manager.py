@@ -12,9 +12,9 @@ class NavigationManager:
     def show_login(self):
         self.login_view.show()
 
-    def show_admin(self, user_controller: IUserController):
+    def show_admin(self, user_controller: IUserController, current_user_id: int):
         try:
-            self.admin_view = AdminView(user_controller)
+            self.admin_view = AdminView(user_controller, current_user_id)
             self.admin_view.show()
             self.login_view.hide()
         except Exception as e:
