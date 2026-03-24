@@ -24,8 +24,8 @@ def init_db():
                 login="admin",
                 password_hash=hash_password("admin123"),
                 role_id=admin_role.role_id,
-                last_name="Admin",
-                first_name="System",
+                last_name="Иванов",
+                first_name="Иван",
                 login_attempts=0,
             )
             session.add(admin_user)
