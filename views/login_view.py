@@ -73,6 +73,9 @@ class LoginView(QWidget):
         self.show_info.emit("Капча", "Пазл собран верно!")
 
     def on_login_clicked(self):
+        if not self.captcha_solved:
+            self.show_warning.emit("Капча", "Сначала соберите пазл")
+            return
         login = self.login_edit.text().strip()
         password = self.password_edit.text()
         self.login_requested.emit(login, password)

@@ -30,6 +30,7 @@ class AppFactory:
     def create_login_view(captcha_widget: ICaptchaWidget) -> LoginView:
         return LoginView(captcha_widget)
 
+
 def main():
     app = QApplication(sys.argv)
     try:
@@ -45,10 +46,10 @@ def main():
     captcha_widget = AppFactory.create_captcha_widget()
     login_view = AppFactory.create_login_view(captcha_widget)
 
-    navigation_manager = NavigationManager(login_view)
+    # NavigationManager теперь получает user_controller для создания AdminView
+    navigation_manager = NavigationManager(login_view, user_controller)
     auth_flow_handler = AuthFlowHandler(
         auth_controller,
-        user_controller,
         login_view,
         navigation_manager
     )

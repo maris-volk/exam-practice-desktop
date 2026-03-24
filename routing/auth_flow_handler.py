@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import QApplication
 from routing.navigation_manager import NavigationManager
-from utils.protocols import IAuthController, IUserController
+from utils.protocols import IAuthController
 from views.login_view import LoginView
 
 
@@ -8,12 +8,10 @@ class AuthFlowHandler:
     def __init__(
             self,
             auth_controller: IAuthController,
-            user_controller: IUserController,
             login_view: LoginView,
             navigation_manager: NavigationManager
-        ):
+            ):
         self.auth_controller = auth_controller
-        self.user_controller = user_controller
         self.login_view = login_view
         self.navigation_manager = navigation_manager
         self.pending_user = None
@@ -55,9 +53,5 @@ class AuthFlowHandler:
 
     def on_info_closed(self):
         if self.pending_user:
-            user = self.pending_user
+            self.navigation_manager.on_authentication_success(self.pending_user)
             self.pending_user = None
-            if user.role.role_name == "admin":
-                self.navigation_manager.show_admin(self.user_controller, user.user_id)
-            else:
-                QApplication.quit()
