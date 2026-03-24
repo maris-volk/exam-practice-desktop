@@ -61,18 +61,6 @@ class AdminView(QWidget):
         self.delete_btn.clicked.connect(self.delete_user)
         self.unlock_btn.clicked.connect(self.unlock_user)
 
-    def focusNextPrevChild(self, next_child: bool) -> bool:
-        current = self.focusWidget()
-        if next_child:
-            if current == self.unlock_btn:
-                self.table_view.setFocus()
-                return True
-        else:
-            if current == self.table_view:
-                self.unlock_btn.setFocus()
-                return True
-        return super().focusNextPrevChild(next_child)
-
     def load_users(self):
         try:
             users = self.user_controller.get_all_users()
