@@ -1,11 +1,8 @@
 PyQt5==5.15.10
-
 SQLAlchemy==2.0.41
 psycopg[binary]==3.2.4
-
-passlib==1.7.4
-bcrypt==4.2.0
-
+passlib[bcrypt]==1.7.4
+bcrypt==3.2.0
 pytest==8.3.5
 pytest-qt==4.4.0
 pytest-cov==6.0.0

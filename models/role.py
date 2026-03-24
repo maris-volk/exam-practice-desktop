@@ -1,4 +1,11 @@
-# sqlachemy orm model for the "user" table
-# fields: id (PK), login, password (hashed), role_id (FK to roles),
-#         last_name, first_name, patronymic, phone_number, login_attempts
-# includes relationship to Role model
+from sqlalchemy import Column, Integer, String
+from sqlalchemy.orm import relationship
+from .base import Base
+
+class Role(Base):
+    __tablename__ = "role"
+
+    role_id = Column(Integer, primary_key=True, autoincrement=True)
+    role_name = Column(String(50), nullable=False, unique=True)
+
+    users = relationship("User", back_populates="role")

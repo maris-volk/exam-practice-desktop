@@ -1,2 +1,2 @@
-# Exports controller classes for external use
-# Imports AuthController and UserController
+from .auth_controller import AuthController
+from .user_controller import UserController

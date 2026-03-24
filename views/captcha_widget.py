@@ -1,6 +1,117 @@
-# Interactive puzzle widget for CAPTCHA
-# Displays 4 image fragments (from resources/1.png, 2.png, 3.png, 4.png)
-# that the user must arrange in the correct order
-# features: draggable/droppable fragments, visual feedback,
-#           method to verify if fragments are in correct order
-# emits a signal when the puzzle is solved or attempted
+import random
+from PyQt5.QtWidgets import QWidget, QGridLayout, QLabel, QSizePolicy
+from PyQt5.QtCore import Qt, pyqtSignal, QTimer
+from PyQt5.QtGui import QPixmap
+
+
+class CaptchaWidget(QWidget):
+    solved = pyqtSignal()
+
+    def __init__(self, image_paths, parent=None):
+        super().__init__(parent)
+        self.image_paths = image_paths
+        self.correct_order = list(range(4))
+        self.current_order = self.correct_order.copy()
+        self._shuffle_until_incorrect()
+
+        self.labels = []
+        self.selected_index = None
+
+        self._resize_timer = QTimer()
+        self._resize_timer.setSingleShot(True)
+        self._resize_timer.timeout.connect(self._delayed_resize)
+
+        self.init_ui()
+
+    def _shuffle_until_incorrect(self):
+        while self.current_order == self.correct_order:
+            random.shuffle(self.current_order)
+
+    def init_ui(self):
+        layout = QGridLayout()
+        layout.setSpacing(0)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setAlignment(Qt.AlignCenter)
+        self.setLayout(layout)
+
+        layout.setColumnStretch(0, 1)
+        layout.setColumnStretch(1, 1)
+        layout.setRowStretch(0, 1)
+        layout.setRowStretch(1, 1)
+
+        self.original_pixmaps = [QPixmap(path) for path in self.image_paths]
+
+        for i in range(4):
+            label = QLabel()
+            label.setAlignment(Qt.AlignCenter)
+            label.setContentsMargins(0, 0, 0, 0)
+            label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+            label.setStyleSheet("border: 1px solid gray; background: lightgray;")
+            label.mousePressEvent = lambda event, idx=i: self.on_label_click(idx)
+            self.labels.append(label)
+            row, col = divmod(i, 2)
+            layout.addWidget(label, row, col)
+
+        self._update_sizes()
+
+    def _update_sizes(self):
+        if not self.labels:
+            return
+
+        avail_width = self.width()
+        avail_height = self.height()
+        max_cell_size = min(avail_width // 2, avail_height // 2)
+
+        if max_cell_size <= 0:
+            return
+
+        for label in self.labels:
+            label.setFixedSize(max_cell_size, max_cell_size)
+
+        self.layout().update()
+        self._update_images()
+
+    def _update_images(self):
+        if not self.labels:
+            return
+
+        for idx, label in enumerate(self.labels):
+            img_idx = self.current_order[idx]
+            w, h = label.width(), label.height()
+            if w > 0 and h > 0:
+                pixmap = self.original_pixmaps[img_idx].scaled(
+                    w, h, Qt.KeepAspectRatio, Qt.SmoothTransformation
+                )
+                label.setPixmap(pixmap)
+
+    def _delayed_resize(self):
+        self._update_sizes()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._resize_timer.start(10)
+
+    def on_label_click(self, clicked_idx):
+        if self.selected_index is None:
+            self.selected_index = clicked_idx
+            self.labels[clicked_idx].setStyleSheet("border: 2px solid blue; background: lightgray;")
+        else:
+            if self.selected_index != clicked_idx:
+                self.current_order[self.selected_index], self.current_order[clicked_idx] = \
+                    self.current_order[clicked_idx], self.current_order[self.selected_index]
+                self._update_images()
+                if self.current_order == self.correct_order:
+                    self.solved.emit()
+            self.labels[self.selected_index].setStyleSheet("border: 1px solid gray; background: lightgray;")
+            self.selected_index = None
+
+    def reset(self):
+        self.current_order = self.correct_order.copy()
+        self._shuffle_until_incorrect()
+        self._update_images()
+        if self.selected_index is not None:
+            self.labels[self.selected_index].setStyleSheet("border: 1px solid gray; background: lightgray;")
+            self.selected_index = None
+
+    def is_solved(self):
+        return self.current_order == self.correct_order
