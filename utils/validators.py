@@ -46,6 +46,16 @@ def validate_phone(phone: str) -> tuple[bool, str]:
     return True, ""
 
 
+def normalize_phone(phone_raw: str) -> str:
+    """Convert raw phone input (with mask) to normalized format +7XXXXXXXXXX."""
+    if not phone_raw:
+        return ""
+    digits = re.sub(r'\D', '', phone_raw)
+    if len(digits) == 11 and digits[0] in ('7', '8'):
+        return '+' + ('7' if digits[0] == '8' else digits[0]) + digits[1:]
+    return ""
+
+
 def validate_name(name: str, field_name: str) -> tuple[bool, str]:
     if not name:
         return True, ""

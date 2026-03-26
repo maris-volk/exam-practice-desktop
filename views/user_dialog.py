@@ -1,12 +1,13 @@
-from PyQt5.QtWidgets import (QDialog, QFormLayout, QLineEdit, QComboBox, QDialogButtonBox, QMessageBox)
-from PyQt5.QtCore import Qt
-from utils.protocols import IUserController
+from PyQt5.QtWidgets import (QDialog, QFormLayout, QLineEdit, QComboBox, QDialogButtonBox)
+from PyQt5.QtCore import Qt, pyqtSignal
 
 
 class UserDialog(QDialog):
-    def __init__(self, user_controller: IUserController, user=None, parent=None):
+    data_submitted = pyqtSignal(dict)
+
+    def __init__(self, roles: list, user=None, parent=None):
         super().__init__(parent)
-        self.user_controller = user_controller
+        self.roles = roles
         self.user = user
         self.setWindowTitle("Добавить пользователя" if user is None else "Редактировать пользователя")
         self.setWindowFlag(Qt.WindowContextHelpButtonHint, False)
@@ -31,16 +32,12 @@ class UserDialog(QDialog):
         layout.addRow("Пароль:", self.password_edit)
 
         self.role_combo = QComboBox()
-        try:
-            roles = self.user_controller.get_roles()
-            for role in roles:
-                self.role_combo.addItem(role.role_name, role.role_id)
-            if self.user:
-                index = self.role_combo.findData(self.user.role_id)
-                if index >= 0:
-                    self.role_combo.setCurrentIndex(index)
-        except Exception as e:
-            QMessageBox.critical(self, "Ошибка", f"Не удалось загрузить роли: {e}")
+        for role in self.roles:
+            self.role_combo.addItem(role.role_name, role.role_id)
+        if self.user:
+            index = self.role_combo.findData(self.user.role_id)
+            if index >= 0:
+                self.role_combo.setCurrentIndex(index)
         layout.addRow("Роль:", self.role_combo)
 
         self.last_name_edit = QLineEdit()
@@ -86,59 +83,14 @@ class UserDialog(QDialog):
         patronymic = self.patronymic_edit.text().strip()
         phone_raw = self.phone_edit.text().strip()
 
-        phone = ""
-        if phone_raw:
-            phone_digits = ''.join(c for c in phone_raw if c.isdigit())
-            if len(phone_digits) == 11 and phone_digits[0] in ('7', '8'):
-                phone = '+' + ('7' if phone_digits[0] == '8' else phone_digits[0]) + phone_digits[1:]
-            else:
-                QMessageBox.warning(self, "Ошибка", "Введите телефон в формате +7 (XXX) XXX-XX-XX")
-                return
-
-        is_edit = self.user is not None
-        validation = self.user_controller.validate_user_data(
-            login=login,
-            password=password if password else None,
-            last_name=last_name,
-            first_name=first_name,
-            patronymic=patronymic,
-            phone=phone,
-            is_edit=is_edit
-        )
-        if not validation.is_valid:
-            QMessageBox.warning(self, "Ошибка", validation.error_message)
-            return
-
-        if phone:
-            exclude_id = self.user.user_id if self.user else None
-            if self.user_controller.is_phone_exists(phone, exclude_user_id=exclude_id):
-                QMessageBox.warning(self, "Ошибка", "Пользователь с таким номером телефона уже существует.")
-                return
-
-        try:
-            if self.user is None:
-                success = self.user_controller.add_user(
-                    login, password, role_name, last_name, first_name, patronymic, phone
-                )
-                if not success:
-                    QMessageBox.warning(self, "Ошибка", "Пользователь с таким логином уже существует.")
-                    return
-            else:
-                success = self.user_controller.update_user(
-                    self.user.user_id,
-                    login=login,
-                    password=password if password else None,
-                    role_name=role_name,
-                    last_name=last_name,
-                    first_name=first_name,
-                    patronymic=patronymic,
-                    phone_number=phone,
-                )
-                if not success:
-                    QMessageBox.warning(self, "Ошибка", "Не удалось обновить пользователя (возможно, логин уже занят).")
-                    return
-        except ValueError as e:
-            QMessageBox.warning(self, "Ошибка", str(e))
-            return
-
-        super().accept()
+        self.data_submitted.emit({
+            "login": login,
+            "password": password,
+            "role_name": role_name,
+            "last_name": last_name,
+            "first_name": first_name,
+            "patronymic": patronymic,
+            "phone": phone_raw,
+            "is_edit": self.user is not None,
+            "user_id": self.user.user_id if self.user else None,
+        })

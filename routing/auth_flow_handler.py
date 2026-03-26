@@ -1,17 +1,17 @@
-from PyQt5.QtWidgets import QApplication
-from routing.navigation_manager import NavigationManager
-from utils.protocols import IAuthController
-from views.login_view import LoginView
+from utils.protocols import IAuthService, INavigationManager
+from utils.view_protocols import ILoginView
+from utils.validators import validate_login, validate_password
+from utils.validation_errors import ValidationResult
 
 
 class AuthFlowHandler:
     def __init__(
             self,
-            auth_controller: IAuthController,
-            login_view: LoginView,
-            navigation_manager: NavigationManager
-            ):
-        self.auth_controller = auth_controller
+            auth_service: IAuthService,
+            login_view: ILoginView,
+            navigation_manager: INavigationManager
+    ):
+        self.auth_service = auth_service
         self.login_view = login_view
         self.navigation_manager = navigation_manager
         self.pending_user = None
@@ -19,39 +19,35 @@ class AuthFlowHandler:
         self.login_view.login_requested.connect(self.on_login_requested)
         self.login_view.info_closed.connect(self.on_info_closed)
 
+    def validate_credentials(self, login: str, password: str) -> ValidationResult:
+        ok, msg = validate_login(login)
+        if not ok:
+            return ValidationResult(False, msg)
+        ok, msg = validate_password(password)
+        if not ok:
+            return ValidationResult(False, msg)
+        return ValidationResult(True)
+
     def on_login_requested(self, login: str, password: str):
-        validation = self.auth_controller.validate_credentials(login, password)
+        validation = self.validate_credentials(login, password)
         if not validation.is_valid:
             self.login_view.show_warning.emit("Ошибка ввода", validation.error_message)
             return
 
-        if not self.login_view.captcha_solved:
-            self.auth_controller.increment_attempts(login)
-            attempts, max_attempts = self.auth_controller.get_attempts_info(login)
-            remaining = max_attempts - attempts
-            if remaining <= 0:
-                self.login_view.show_critical.emit("Доступ заблокирован",  "Вы заблокированы. Обратитесь к администратору.")
-            else:
-                self.login_view.show_warning.emit("Капча", f"Пазл собран неверно.\nОсталось попыток: {remaining}")
-            self.login_view.reset_captcha_after_failure()
-            return
+        result = self.auth_service.handle_login_attempt(login, password, self.login_view.captcha_solved)
 
-        user = self.auth_controller.authenticate(login, password)
-
-        if user:
-            self.pending_user = user
-            self.login_view.show_info.emit("Успех", "Вы успешно авторизовались.")
+        if result.success:
+            self.pending_user = result.user
+            self.login_view.show_info.emit("Успех", result.message)
         else:
-            if self.auth_controller.is_user_blocked(login):
-                self.login_view.show_critical.emit("Доступ заблокирован", "Вы заблокированы. Обратитесь к администратору.")
+            if result.blocked:
+                self.login_view.show_critical.emit("Доступ заблокирован", result.message)
             else:
-                attempts, max_attempts = self.auth_controller.get_attempts_info(login)
-                remaining = max_attempts - attempts
-                self.login_view.show_critical.emit("Ошибка авторизации", f"Вы ввели неверный логин или пароль.\n"
-                                                   f"Осталось попыток: {remaining}")
+                self.login_view.show_warning.emit("Ошибка", result.message)
             self.login_view.reset_captcha_after_failure()
 
     def on_info_closed(self):
         if self.pending_user:
-            self.navigation_manager.on_authentication_success(self.pending_user)
+            role_name = self.auth_service.get_user_role_name(self.pending_user)
+            self.navigation_manager.on_authentication_success(self.pending_user, role_name)
             self.pending_user = None
