@@ -1,18 +1,18 @@
-import random
 from PyQt5.QtWidgets import QWidget, QGridLayout, QLabel, QSizePolicy
 from PyQt5.QtCore import Qt, pyqtSignal, QTimer
 from PyQt5.QtGui import QPixmap
+from services.captcha_service import CaptchaService
 
 
 class CaptchaWidget(QWidget):
     solved = pyqtSignal()
 
-    def __init__(self, image_paths, parent=None):
+    def __init__(self, image_paths, captcha_service: CaptchaService, parent=None):
         super().__init__(parent)
         self.image_paths = image_paths
-        self.correct_order = list(range(4))
-        self.current_order = self.correct_order.copy()
-        self._shuffle_until_incorrect()
+        self.captcha_service = captcha_service
+        self.current_order = self.captcha_service.shuffle()
+        self.was_solved = False
 
         self.labels = []
         self.selected_index = None
@@ -22,10 +22,6 @@ class CaptchaWidget(QWidget):
         self._resize_timer.timeout.connect(self._delayed_resize)
 
         self.init_ui()
-
-    def _shuffle_until_incorrect(self):
-        while self.current_order == self.correct_order:
-            random.shuffle(self.current_order)
 
     def init_ui(self):
         layout = QGridLayout()
@@ -91,27 +87,31 @@ class CaptchaWidget(QWidget):
         super().resizeEvent(event)
         self._resize_timer.start(10)
 
+    def _perform_swap(self, i: int, j: int):
+        self.current_order = self.captcha_service.swap(self.current_order, i, j)
+        self._update_images()
+        is_solved = self.captcha_service.is_solved(self.current_order)
+        if is_solved and not self.was_solved:
+            self.solved.emit()
+        self.was_solved = is_solved
+
     def on_label_click(self, clicked_idx):
         if self.selected_index is None:
             self.selected_index = clicked_idx
             self.labels[clicked_idx].setStyleSheet("border: 2px solid blue; background: lightgray;")
         else:
             if self.selected_index != clicked_idx:
-                self.current_order[self.selected_index], self.current_order[clicked_idx] = \
-                    self.current_order[clicked_idx], self.current_order[self.selected_index]
-                self._update_images()
-                if self.current_order == self.correct_order:
-                    self.solved.emit()
+                self._perform_swap(self.selected_index, clicked_idx)
             self.labels[self.selected_index].setStyleSheet("border: 1px solid gray; background: lightgray;")
             self.selected_index = None
 
     def reset(self):
-        self.current_order = self.correct_order.copy()
-        self._shuffle_until_incorrect()
+        self.current_order = self.captcha_service.shuffle()
+        self.was_solved = False
         self._update_images()
         if self.selected_index is not None:
             self.labels[self.selected_index].setStyleSheet("border: 1px solid gray; background: lightgray;")
             self.selected_index = None
 
     def is_solved(self):
-        return self.current_order == self.correct_order
+        return self.captcha_service.is_solved(self.current_order)

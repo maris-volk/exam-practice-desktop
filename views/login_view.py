@@ -1,7 +1,8 @@
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QLabel,
                              QLineEdit, QPushButton, QMessageBox, QGroupBox)
-from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtCore import pyqtSignal
 from utils.protocols import ICaptchaWidget
+
 
 
 class LoginView(QWidget):
@@ -14,7 +15,6 @@ class LoginView(QWidget):
     def __init__(self, captcha_widget: ICaptchaWidget, parent=None):
         super().__init__(parent)
         self.captcha_widget = captcha_widget
-        self.captcha_solved = False
         self.init_ui()
         self.setWindowTitle("Авторизация")
         self.setMinimumSize(500, 500)
@@ -22,6 +22,8 @@ class LoginView(QWidget):
         self.show_info.connect(self._show_info)
         self.show_warning.connect(self._show_warning)
         self.show_critical.connect(self._show_critical)
+
+        self.captcha_widget.solved.connect(self.on_captcha_solved)
 
     def init_ui(self):
         main_layout = QVBoxLayout()
@@ -46,7 +48,6 @@ class LoginView(QWidget):
         captcha_layout = QVBoxLayout()
         captcha_group.setLayout(captcha_layout)
 
-        self.captcha_widget.solved.connect(self.on_captcha_solved)
         captcha_layout.addWidget(self.captcha_widget)
 
         reset_btn = QPushButton("Сбросить пазл")
@@ -64,25 +65,23 @@ class LoginView(QWidget):
         self.setTabOrder(self.password_edit, self.captcha_widget)
         self.login_edit.setFocus()
 
+    @property
+    def captcha_solved(self) -> bool:
+        return self.captcha_widget.is_solved()
+
     def on_reset_captcha(self):
         self.captcha_widget.reset()
-        self.captcha_solved = False
 
     def on_captcha_solved(self):
-        self.captcha_solved = True
         self.show_info.emit("Капча", "Пазл собран верно!")
 
     def on_login_clicked(self):
-        if not self.captcha_solved:
-            self.show_warning.emit("Капча", "Сначала соберите пазл")
-            return
         login = self.login_edit.text().strip()
         password = self.password_edit.text()
         self.login_requested.emit(login, password)
 
     def reset_captcha_after_failure(self):
         self.captcha_widget.reset()
-        self.captcha_solved = False
 
     def _show_info(self, title: str, text: str):
         msg_box = QMessageBox(self)
@@ -94,7 +93,19 @@ class LoginView(QWidget):
         msg_box.open()
 
     def _show_warning(self, title: str, text: str):
-        QMessageBox.warning(self, title, text)
+        msg_box = QMessageBox(self)
+        msg_box.setIcon(QMessageBox.Warning)
+        msg_box.setWindowTitle(title)
+        msg_box.setText(text)
+        msg_box.setStandardButtons(QMessageBox.Ok)
+        msg_box.finished.connect(lambda: self.info_closed.emit())
+        msg_box.open()
 
     def _show_critical(self, title: str, text: str):
-        QMessageBox.critical(self, title, text)
+        msg_box = QMessageBox(self)
+        msg_box.setIcon(QMessageBox.Critical)
+        msg_box.setWindowTitle(title)
+        msg_box.setText(text)
+        msg_box.setStandardButtons(QMessageBox.Ok)
+        msg_box.finished.connect(lambda: self.info_closed.emit())
+        msg_box.open()

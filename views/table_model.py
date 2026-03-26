@@ -7,6 +7,8 @@ class ConfigurableTableModel(QAbstractTableModel):
         super().__init__()
         self.users = users
         self.columns = columns
+        self._sort_column = -1
+        self._sort_order = Qt.AscendingOrder
 
     def rowCount(self, parent=None) -> int:
         return len(self.users)
@@ -27,6 +29,8 @@ class ConfigurableTableModel(QAbstractTableModel):
         return None
 
     def sort(self, column: int, order: Qt.SortOrder = Qt.AscendingOrder):
+        self._sort_column = column
+        self._sort_order = order
         self.layoutAboutToBeChanged.emit()
         getter = self.columns[column]["getter"]
         self.users.sort(key=getter, reverse=(order == Qt.DescendingOrder))
@@ -35,4 +39,7 @@ class ConfigurableTableModel(QAbstractTableModel):
     def refresh(self, users: List[Any]):
         self.beginResetModel()
         self.users = users
+        if self._sort_column != -1:
+            getter = self.columns[self._sort_column]["getter"]
+            self.users.sort(key=getter, reverse=(self._sort_order == Qt.DescendingOrder))
         self.endResetModel()
