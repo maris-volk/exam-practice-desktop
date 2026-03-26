@@ -19,9 +19,3 @@ cd project
 ```bash
 pip install -r requirements.txt
 ```
-
-### Настройка базы данных
-Создать базу данных PostgreSQL и настроить подключение в файле database/db_session.py:
-```bash
-DATABASE_URL = "postgresql+psycopg://user:password@localhost:5432/dbname"
-```
