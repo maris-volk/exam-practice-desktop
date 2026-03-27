@@ -1,7 +1,9 @@
 from typing import Optional, Tuple, NamedTuple
 from models.user import User
-from utils.protocols import IUserRepository, IRoleRepository
+from utils.protocols import ISessionFactory
 from utils.password_hasher import verify_password
+from repositories.user_repository import UserRepository
+from repositories.role_repository import RoleRepository
 
 
 class LoginResult(NamedTuple):
@@ -13,9 +15,9 @@ class LoginResult(NamedTuple):
 
 
 class AuthService:
-    def __init__(self, user_repo: IUserRepository, role_repo: IRoleRepository):
-        self.user_repo = user_repo
-        self.role_repo = role_repo
+    def __init__(self, session_factory: ISessionFactory):
+        self.user_repo = UserRepository(session_factory)
+        self.role_repo = RoleRepository(session_factory)
 
     def authenticate(self, login: str, password: str) -> Optional[User]:
         user = self.user_repo.get_by_login(login)

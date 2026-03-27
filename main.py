@@ -15,8 +15,6 @@ from routing.auth_flow_handler import AuthFlowHandler
 from utils.protocols import ICaptchaWidget, IUserService
 from utils.view_protocols import IAdminViewFactory
 from database.session_factory import SessionFactory
-from repositories.user_repository import UserRepository
-from repositories.role_repository import RoleRepository
 
 logging.getLogger('sqlalchemy').setLevel(logging.ERROR)
 
@@ -28,13 +26,9 @@ class AdminViewFactory(IAdminViewFactory):
 
 class AppFactory:
     @staticmethod
-    def create_repositories(session_factory):
-        return UserRepository(session_factory), RoleRepository(session_factory)
-
-    @staticmethod
-    def create_services(user_repo, role_repo):
-        auth_service = AuthService(user_repo, role_repo)
-        user_service = UserService(user_repo, role_repo)
+    def create_services(session_factory):
+        auth_service = AuthService(session_factory)
+        user_service = UserService(session_factory)
         captcha_service = CaptchaService(list(range(4)))
         return auth_service, user_service, captcha_service
 
@@ -62,8 +56,7 @@ def main():
         sys.exit(1)
 
     session_factory = SessionFactory()
-    user_repo, role_repo = AppFactory.create_repositories(session_factory)
-    auth_service, user_service, captcha_service = AppFactory.create_services(user_repo, role_repo)
+    auth_service, user_service, captcha_service = AppFactory.create_services(session_factory)
 
     captcha_widget = AppFactory.create_captcha_widget(captcha_service)
     login_view = AppFactory.create_login_view(captcha_widget)
