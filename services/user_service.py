@@ -1,17 +1,19 @@
 from typing import Optional, List, Tuple
 from models.user import User
 from models.role import Role
-from utils.protocols import IUserRepository, IRoleRepository, IUserService
+from utils.protocols import ISessionFactory, IUserService
 from utils.password_hasher import hash_password
 from utils.validators import (
     validate_login, validate_password, validate_phone, validate_fio,
     normalize_phone
 )
 from utils.validation_errors import ValidationResult
+from repositories.user_repository import UserRepository
+from repositories.role_repository import RoleRepository
 
 
 class UserValidationService:
-    def __init__(self, user_repo: IUserRepository, role_repo: IRoleRepository):
+    def __init__(self, user_repo: UserRepository, role_repo: RoleRepository):
         self.user_repo = user_repo
         self.role_repo = role_repo
 
@@ -80,7 +82,7 @@ class UserValidationService:
 
 
 class UserPersistenceService:
-    def __init__(self, user_repo: IUserRepository, role_repo: IRoleRepository):
+    def __init__(self, user_repo: UserRepository, role_repo: RoleRepository):
         self.user_repo = user_repo
         self.role_repo = role_repo
 
@@ -205,11 +207,12 @@ class UserOperationService:
 
 
 class UserService(IUserService):
-    def __init__(self, user_repo: IUserRepository, role_repo: IRoleRepository):
+    def __init__(self, session_factory: ISessionFactory):
+        user_repo = UserRepository(session_factory)
+        role_repo = RoleRepository(session_factory)
         self._validation = UserValidationService(user_repo, role_repo)
         self._persistence = UserPersistenceService(user_repo, role_repo)
         self._operations = UserOperationService(self._validation, self._persistence)
-
 
     def get_all_users(self) -> List[User]:
         return self._persistence.get_all_users()
