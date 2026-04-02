@@ -18,7 +18,7 @@ class AdminView(QWidget):
         self.current_user_id = current_user_id
         self.table_model = ConfigurableTableModel([], columns_config)
         self.init_ui()
-        self.setWindowTitle("Панель администратора")
+        self.setWindowTitle('Молочный комбинат ООО "Полесье" - Панель администратора')
         self.setMinimumSize(800, 600)
 
         self.add_btn.clicked.connect(self.add_user_requested.emit)
